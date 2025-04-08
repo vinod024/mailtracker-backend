@@ -1,8 +1,9 @@
 const { GoogleSpreadsheet } = require('google-spreadsheet');
-const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT); // ✅ updated variable name
+
+const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 
-async function logOpenToSheet(company, email, subject, type) {
+async function logOpenByCid(cid) {
   const doc = new GoogleSpreadsheet(SHEET_ID);
   await doc.useServiceAccountAuth(creds);
   await doc.loadInfo();
@@ -11,27 +12,12 @@ async function logOpenToSheet(company, email, subject, type) {
   await sheet.loadHeaderRow();
   const rows = await sheet.getRows();
 
-  let targetRow = rows.find(
-    r =>
-      r['Company Name'] === company &&
-      r['Email ID'] === email &&
-      r['Email Type'] === type &&
-      r['Subject'] === subject
-  );
-
   const now = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata' });
 
+  const targetRow = rows.find(row => row['CID'] === cid);
+
   if (!targetRow) {
-    targetRow = await sheet.addRow({
-      'Company Name': company,
-      'Email ID': email,
-      'Subject': subject,
-      'Email Type': type,
-      'Sent Time': '',
-      'Total Opens': 1,
-      'Last Seen Time': now,
-      'Seen 1': now
-    });
+    console.log('⚠️ No matching row found for CID:', cid);
     return;
   }
 
@@ -41,16 +27,17 @@ async function logOpenToSheet(company, email, subject, type) {
   targetRow['Last Seen Time'] = now;
 
   for (let i = 1; i <= 10; i++) {
-    if (!targetRow[`Seen ${i}`]) {
-      targetRow[`Seen ${i}`] = now;
+    const col = `Seen ${i}`;
+    if (!targetRow[col]) {
+      targetRow[col] = now;
       break;
     }
     if (i === 10) {
-      targetRow[`Seen ${i}`] = now; // Overwrite last slot
+      targetRow[col] = now; // overwrite last
     }
   }
 
   await targetRow.save();
 }
 
-module.exports = { logOpenToSheet };
+module.exports = { logOpenByCid };
