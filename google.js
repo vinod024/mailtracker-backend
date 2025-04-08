@@ -1,6 +1,6 @@
 const { GoogleSpreadsheet } = require('google-spreadsheet');
-const creds = JSON.parse(process.env.GOOGLE_CREDENTIALS);
-const SHEET_ID = process.env.SHEET_ID;
+const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT); // ✅ updated variable name
+const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 
 async function logOpenToSheet(company, email, subject, type) {
   const doc = new GoogleSpreadsheet(SHEET_ID);
