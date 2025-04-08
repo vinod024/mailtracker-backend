@@ -1,34 +1,38 @@
 const express = require('express');
-const { logOpenToSheet } = require('./google');
+const { logOpenByCid } = require('./google');
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-app.get('/open', async (req, res) => {
-  const { company, email, subject, type, self } = req.query;
-
-  if (!company || !email || !type) {
-    return res.status(400).send('Missing parameters');
-  }
-
-  // Ignore sender-side tracking
-  if (self === '1') return res.sendFile(__dirname + '/pixel.gif');
-
-  try {
-    await logOpenToSheet(company, email, subject || 'No Subject', type);
-    res.sendFile(__dirname + '/pixel.gif');
-  } catch (err) {
-    console.error('Error logging open:', err);
-    res.status(500).send('Error logging open');
-  }
-});
-
-// Serve a 1x1 transparent pixel
-const fs = require('fs');
-const pixel = Buffer.from(
-  'R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
+// 1x1 Transparent Pixel Buffer (GIF)
+const transparentPixel = Buffer.from(
+  'R0lGODlhAQABAPAAAAAAAAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==',
   'base64'
 );
-fs.writeFileSync(__dirname + '/pixel.gif', pixel);
 
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+app.get('/open', async (req, res) => {
+  const { cid } = req.query;
 
+  if (!cid) {
+    console.log('❌ Missing cid');
+    return res.status(400).send('Missing cid');
+  }
+
+  try {
+    await logOpenByCid(cid);
+    console.log('✅ Open tracked for cid:', cid);
+  } catch (err) {
+    console.error('❌ Failed to log open:', err.message);
+  }
+
+  res.set('Content-Type', 'image/gif');
+  res.send(transparentPixel);
+});
+
+// Default route for safety
+app.get('/', (req, res) => {
+  res.send('📬 Mailtracker backend is live!');
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
