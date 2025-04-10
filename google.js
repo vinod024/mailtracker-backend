@@ -3,42 +3,36 @@ const { GoogleSpreadsheet } = require('google-spreadsheet');
 const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 
-// Detects if CID is already readable (not base64)
-function safeDecodeCID(cid) {
-  if (cid.includes('|') && cid.split('|').length >= 4) {
-    console.log('🧠 CID is already decoded — skipping base64 decode');
-    return cid;
-  }
-
-  try {
-    const base64 = cid.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
-    return Buffer.from(padded, 'base64').toString('utf-8');
-  } catch (err) {
-    console.error('❌ Base64 decode failed:', err.message);
-    return null;
-  }
+// ✅ Gmail-safe base64 decoder
+function decodeBase64UrlSafe(cid) {
+  const base64 = cid.replace(/-/g, '+').replace(/_/g, '/');
+  const paddingNeeded = (4 - (base64.length % 4)) % 4;
+  const padded = base64 + '='.repeat(paddingNeeded);
+  return Buffer.from(padded, 'base64').toString('utf-8');
 }
 
-async function logOpenByCid(cidRaw) {
-  console.log('📩 Incoming CID:', cidRaw);
+// ✅ Main tracking function
+async function logOpenByCid(cid) {
+  console.log('📩 Incoming CID:', cid);
 
-  const decoded = safeDecodeCID(cidRaw);
-  if (!decoded) {
-    console.error('❌ Could not decode CID.');
+  let decoded;
+  try {
+    decoded = decodeBase64UrlSafe(cid);
+  } catch (err) {
+    console.error('❌ Failed to decode CID:', err.message);
     return;
   }
 
   console.log('🔓 Decoded CID:', decoded);
   const parts = decoded.split('|');
 
-  if (parts.length < 4) {
-    console.error('❌ Invalid decoded CID format.');
+  if (parts.length !== 5) {
+    console.error('❌ Invalid decoded CID format. Parts:', parts);
     return;
   }
 
-  const [company, email, type, sentTime] = parts;
-  console.log('🔍 Matching — Company:', company, '| Email:', email, '| Type:', type, '| Sent:', sentTime);
+  const [company, email, subject, type, sentTime] = parts;
+  console.log('🔍 Company:', company, '| Email:', email, '| Subject:', subject, '| Type:', type, '| Sent:', sentTime);
 
   const doc = new GoogleSpreadsheet(SHEET_ID);
   await doc.useServiceAccountAuth(creds);
@@ -50,30 +44,10 @@ async function logOpenByCid(cidRaw) {
 
   const now = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata' });
 
-  let targetRow = null;
-
-  for (const row of rows) {
-    const rowCid = row['CID'];
-    if (!rowCid) continue;
-
-    const rowDecoded = safeDecodeCID(rowCid);
-    if (!rowDecoded) continue;
-
-    const [rCompany, rEmail, rSubject, rType, rTime] = rowDecoded.split('|');
-
-    if (
-      rCompany === company &&
-      rEmail === email &&
-      rType === type &&
-      rTime === sentTime
-    ) {
-      targetRow = row;
-      break;
-    }
-  }
-
+  // ✅ Find matching row using CID in column Z
+  const targetRow = rows.find(row => row['CID'] === cid);
   if (!targetRow) {
-    console.log('⚠️ No matching row found for decoded CID:', decoded);
+    console.log('⚠️ No matching row found for CID in sheet:', cid);
     return;
   }
 
@@ -89,18 +63,23 @@ async function logOpenByCid(cidRaw) {
       break;
     }
     if (i === 10) {
-      targetRow[col] = now; // overwrite last
+      targetRow[col] = now; // overwrite Seen 10
     }
   }
 
-  console.log(`📊 Updating Row — Company: ${company}, Email: ${email}, Type: ${type}`);
+  // ✅ Optional: Update Subject column if it's empty (can skip if already present)
+  if (!targetRow['Subject']) {
+    targetRow['Subject'] = subject;
+  }
+
+  console.log(`📊 Updating Row for: ${company}, ${email}, ${type}`);
   console.log('📈 Total Opens:', total, '| ⏱️ Last Seen Time:', now);
 
   try {
     await targetRow.save();
     console.log('✅ Row successfully updated in Google Sheet.');
   } catch (err) {
-    console.error('❌ Failed to save to Google Sheet:', err.message);
+    console.error('❌ Failed to save row to Google Sheet:', err.message);
   }
 }
 
