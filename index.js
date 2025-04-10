@@ -1,5 +1,5 @@
 const express = require('express');
-const { logOpenByCid } = require('./google');
+const { insertTrackingRow } = require('./google'); // ✅ use correct function name
 const app = express();
 
 // Transparent 1x1 GIF
@@ -8,19 +8,19 @@ const transparentPixel = Buffer.from(
   'base64'
 );
 
-// Gmail-safe Base64URL decoder (✓ fixed decoding)
+// Decode Gmail-safe Base64 CID
 function decodeBase64UrlSafe(cid) {
   try {
     const base64 = cid.replace(/-/g, '+').replace(/_/g, '/');
     const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
-    return Buffer.from(padded, 'base64').toString(); // ← ✅ fixed here
+    return Buffer.from(padded, 'base64').toString('utf-8');
   } catch (err) {
     console.error('❌ Failed to decode CID:', cid, '| Error:', err.message);
     return null;
   }
 }
 
-// 🔁 Open Tracking Endpoint
+// 📨 Open Tracking Endpoint
 app.get('/open', async (req, res) => {
   const { cid } = req.query;
 
@@ -47,11 +47,11 @@ app.get('/open', async (req, res) => {
     email,
     subject,
     type,
-    sentTime,
+    sentTime
   });
 
   try {
-    await logOpenByCid(decoded); // pass full decoded string
+    await insertTrackingRow(company, email, subject, type, sentTime, cid); // ✅ CORRECT FUNCTION
     console.log('✅ Open tracked and logged in sheet.');
   } catch (err) {
     console.error('❌ Failed to log open:', err.message);
@@ -61,7 +61,7 @@ app.get('/open', async (req, res) => {
   res.send(transparentPixel);
 });
 
-// Optional health check
+// Optional base route
 app.get('/', (req, res) => {
   res.send('📬 Mailtracker backend is live!');
 });
