@@ -3,36 +3,18 @@ const { GoogleSpreadsheet } = require('google-spreadsheet');
 const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 
-// ✅ Gmail-safe base64 decoder
-function decodeBase64UrlSafe(cid) {
-  const base64 = cid.replace(/-/g, '+').replace(/_/g, '/');
-  const paddingNeeded = (4 - (base64.length % 4)) % 4;
-  const padded = base64 + '='.repeat(paddingNeeded);
-  return Buffer.from(padded, 'base64').toString('utf-8');
-}
-
 // ✅ Main tracking function
 async function logOpenByCid(cid) {
   console.log('📩 Incoming CID:', cid);
 
-  let decoded;
-  try {
-    decoded = decodeBase64UrlSafe(cid);
-  } catch (err) {
-    console.error('❌ Failed to decode CID:', err.message);
-    return;
-  }
-
-  console.log('🔓 Decoded CID:', decoded);
-  const parts = decoded.split('|');
-
+  const parts = cid.split('|');
   if (parts.length !== 5) {
-    console.error('❌ Invalid decoded CID format. Parts:', parts);
+    console.error('❌ Invalid CID format:', cid);
     return;
   }
 
   const [company, email, subject, type, sentTime] = parts;
-  console.log('🔍 Company:', company, '| Email:', email, '| Subject:', subject, '| Type:', type, '| Sent:', sentTime);
+  console.log('🔍 CID Split → Company:', company, '| Email:', email, '| Type:', type, '| Subject:', subject);
 
   const doc = new GoogleSpreadsheet(SHEET_ID);
   await doc.useServiceAccountAuth(creds);
@@ -44,10 +26,9 @@ async function logOpenByCid(cid) {
 
   const now = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata' });
 
-  // ✅ Find matching row using CID in column Z
   const targetRow = rows.find(row => row['CID'] === cid);
   if (!targetRow) {
-    console.log('⚠️ No matching row found for CID in sheet:', cid);
+    console.log('⚠️ Row not found with exact CID match:', cid);
     return;
   }
 
@@ -63,23 +44,18 @@ async function logOpenByCid(cid) {
       break;
     }
     if (i === 10) {
-      targetRow[col] = now; // overwrite Seen 10
+      targetRow[col] = now; // Overwrite last
     }
   }
 
-  // ✅ Optional: Update Subject column if it's empty (can skip if already present)
-  if (!targetRow['Subject']) {
-    targetRow['Subject'] = subject;
-  }
-
-  console.log(`📊 Updating Row for: ${company}, ${email}, ${type}`);
+  console.log(`📊 Updating row for ${company} | ${email} | ${type}`);
   console.log('📈 Total Opens:', total, '| ⏱️ Last Seen Time:', now);
 
   try {
     await targetRow.save();
-    console.log('✅ Row successfully updated in Google Sheet.');
+    console.log('✅ Row successfully updated.');
   } catch (err) {
-    console.error('❌ Failed to save row to Google Sheet:', err.message);
+    console.error('❌ Failed to save row:', err.message);
   }
 }
 
