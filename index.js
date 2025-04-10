@@ -55,7 +55,7 @@ app.get('/open', async (req, res) => {
     await logOpenByCid(decoded); // Sheet updater
     console.log('✅ Open tracked and logged in sheet.');
   } catch (err) {
-    console.error('❌ Failed to log open:', err.message);
+   console.error('❌ Failed to log open:', (err && err.message) || JSON.stringify(err));
   }
 
   // Return transparent pixel
