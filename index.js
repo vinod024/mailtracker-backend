@@ -2,15 +2,16 @@ const express = require('express');
 const { logOpenByCid } = require('./google');
 const app = express();
 
-// Transparent 1x1 GIF
+// Transparent 1x1 GIF buffer (do not touch)
 const transparentPixel = Buffer.from(
   'R0lGODlhAQABAPAAAAAAAAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==',
   'base64'
 );
 
-// Decode Gmail-safe Base64 CID
+// ✅ Gmail-safe Base64 decoder with padding and substitution fix
 function decodeBase64UrlSafe(cid) {
   try {
+    // Replace Gmail-deformed characters back to base64-compatible ones
     const base64 = cid.replace(/-/g, '+').replace(/_/g, '/');
     const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
     return Buffer.from(padded, 'base64').toString('utf-8');
@@ -20,7 +21,7 @@ function decodeBase64UrlSafe(cid) {
   }
 }
 
-// 🔁 Open Tracking Endpoint
+// 📬 Open tracking pixel endpoint
 app.get('/open', async (req, res) => {
   const { cid } = req.query;
 
@@ -31,7 +32,7 @@ app.get('/open', async (req, res) => {
 
   const decoded = decodeBase64UrlSafe(cid);
   if (!decoded) {
-    return res.status(400).send('Invalid CID');
+    return res.status(400).send('Invalid CID (decode failed)');
   }
 
   const parts = decoded.split('|');
@@ -51,22 +52,23 @@ app.get('/open', async (req, res) => {
   });
 
   try {
-    await logOpenByCid(decoded); // Full decoded string is passed to Google Sheet
+    await logOpenByCid(decoded); // Sheet updater
     console.log('✅ Open tracked and logged in sheet.');
   } catch (err) {
     console.error('❌ Failed to log open:', err.message);
   }
 
+  // Return transparent pixel
   res.set('Content-Type', 'image/gif');
   res.send(transparentPixel);
 });
 
-// Optional default route
+// 🔄 Optional homepage for debugging
 app.get('/', (req, res) => {
   res.send('📬 Mailtracker backend is live!');
 });
 
-// Launch server
+// 🚀 Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
