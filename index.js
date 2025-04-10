@@ -16,7 +16,7 @@ function decodeBase64UrlSafe(cid) {
     const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
     return Buffer.from(padded, 'base64').toString('utf-8');
   } catch (err) {
-    console.error('❌ Failed to decode CID:', cid, '| Error:', err.message);
+console.error('❌ Failed to decode CID:', cid, '| Error:', (err && err.message) || JSON.stringify(err));
     return null;
   }
 }
