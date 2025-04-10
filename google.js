@@ -67,8 +67,13 @@ async function logOpenByCid(cid) {
 
   console.log(`📊 Updating Row for: ${company}, ${email}, ${type}`);
   console.log('📈 Total Opens:', total, '| ⏱️ Last Seen Time:', now);
-  await targetRow.save();
-  console.log('✅ Row successfully updated in Google Sheet.');
+
+  try {
+    await targetRow.save();
+    console.log('✅ Row successfully updated in Google Sheet.');
+  } catch (err) {
+    console.error('❌ Failed to save row to Google Sheet:', err.message);
+  }
 }
 
 module.exports = { logOpenByCid };
