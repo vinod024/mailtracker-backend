@@ -2,13 +2,13 @@ const express = require('express');
 const { logOpenByCid } = require('./google');
 const app = express();
 
-// 1x1 Transparent Pixel Buffer (GIF)
+// Transparent 1x1 GIF
 const transparentPixel = Buffer.from(
   'R0lGODlhAQABAPAAAAAAAAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==',
   'base64'
 );
 
-// Gmail-safe base64 decoder function
+// Decode Gmail-safe Base64 CID
 function decodeBase64UrlSafe(cid) {
   try {
     const base64 = cid.replace(/-/g, '+').replace(/_/g, '/');
@@ -20,7 +20,7 @@ function decodeBase64UrlSafe(cid) {
   }
 }
 
-// ✅ Open tracking endpoint (used by pixel)
+// 🔁 Open Tracking Endpoint
 app.get('/open', async (req, res) => {
   const { cid } = req.query;
 
@@ -41,16 +41,17 @@ app.get('/open', async (req, res) => {
   }
 
   const [company, email, subject, type, sentTime] = parts;
+
   console.log('📩 Open Tracking:', {
     company,
     email,
     subject,
     type,
-    sentTime
+    sentTime,
   });
 
   try {
-    await logOpenByCid(decoded); // Pass full decoded CID to google.js
+    await logOpenByCid(decoded); // Full decoded string is passed to Google Sheet
     console.log('✅ Open tracked and logged in sheet.');
   } catch (err) {
     console.error('❌ Failed to log open:', err.message);
@@ -60,12 +61,12 @@ app.get('/open', async (req, res) => {
   res.send(transparentPixel);
 });
 
-// Default route (optional)
+// Optional default route
 app.get('/', (req, res) => {
   res.send('📬 Mailtracker backend is live!');
 });
 
-// Start server
+// Launch server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
