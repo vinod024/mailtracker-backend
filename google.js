@@ -3,32 +3,42 @@ const { GoogleSpreadsheet } = require('google-spreadsheet');
 const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 
-function decodeBase64UrlSafe(cid) {
-  const base64 = cid.replace(/-/g, '+').replace(/_/g, '/');
-  const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
-  return Buffer.from(padded, 'base64').toString('utf-8');
+// Detects if CID is already readable (not base64)
+function safeDecodeCID(cid) {
+  if (cid.includes('|') && cid.split('|').length >= 4) {
+    console.log('🧠 CID is already decoded — skipping base64 decode');
+    return cid;
+  }
+
+  try {
+    const base64 = cid.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
+    return Buffer.from(padded, 'base64').toString('utf-8');
+  } catch (err) {
+    console.error('❌ Base64 decode failed:', err.message);
+    return null;
+  }
 }
 
 async function logOpenByCid(cidRaw) {
   console.log('📩 Incoming CID:', cidRaw);
 
-  let decoded;
-  try {
-    decoded = decodeBase64UrlSafe(cidRaw);
-  } catch (err) {
-    console.error('❌ Failed to decode CID:', err.message);
+  const decoded = safeDecodeCID(cidRaw);
+  if (!decoded) {
+    console.error('❌ Could not decode CID.');
     return;
   }
 
   console.log('🔓 Decoded CID:', decoded);
+  const parts = decoded.split('|');
 
-  const [company, email, type, sentTime] = decoded.split('|');
-  console.log('🔍 Matching — Company:', company, '| Email:', email, '| Type:', type, '| Sent:', sentTime);
-
-  if (!company || !email || !type || !sentTime) {
+  if (parts.length < 4) {
     console.error('❌ Invalid decoded CID format.');
     return;
   }
+
+  const [company, email, type, sentTime] = parts;
+  console.log('🔍 Matching — Company:', company, '| Email:', email, '| Type:', type, '| Sent:', sentTime);
 
   const doc = new GoogleSpreadsheet(SHEET_ID);
   await doc.useServiceAccountAuth(creds);
@@ -46,21 +56,19 @@ async function logOpenByCid(cidRaw) {
     const rowCid = row['CID'];
     if (!rowCid) continue;
 
-    try {
-      const decodedRow = decodeBase64UrlSafe(rowCid);
-      const [rCompany, rEmail, rSubject, rType, rTime] = decodedRow.split('|');
+    const rowDecoded = safeDecodeCID(rowCid);
+    if (!rowDecoded) continue;
 
-      if (
-        rCompany === company &&
-        rEmail === email &&
-        rType === type &&
-        rTime === sentTime
-      ) {
-        targetRow = row;
-        break;
-      }
-    } catch (err) {
-      console.warn('⚠️ Failed to decode row CID:', row['CID'], '| Error:', err.message);
+    const [rCompany, rEmail, rSubject, rType, rTime] = rowDecoded.split('|');
+
+    if (
+      rCompany === company &&
+      rEmail === email &&
+      rType === type &&
+      rTime === sentTime
+    ) {
+      targetRow = row;
+      break;
     }
   }
 
@@ -81,7 +89,7 @@ async function logOpenByCid(cidRaw) {
       break;
     }
     if (i === 10) {
-      targetRow[col] = now; // overwrite
+      targetRow[col] = now; // overwrite last
     }
   }
 
