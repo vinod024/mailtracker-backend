@@ -15,14 +15,20 @@ app.get('/open', async (req, res) => {
     console.log('❌ Missing cid');
     return res.status(400).send('Missing cid');
   }
+// Gmail-safe base64 decode
+function decodeBase64UrlSafe(cid) {
+  const base64 = cid.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
+  return Buffer.from(padded, 'base64').toString('utf-8');
+}
 
-  try {
-    await logOpenByCid(cid);
-    console.log('✅ Open tracked for cid:', cid);
-  } catch (err) {
-    console.error('❌ Failed to log open:', err.message);
-  }
-
+try {
+  const decoded = decodeBase64UrlSafe(cid);
+  await logOpenByCid(decoded);
+  console.log('✅ Open tracked for cid:', decoded);
+} catch (err) {
+  console.error('❌ Failed to log open:', err.message);
+}
   res.set('Content-Type', 'image/gif');
   res.send(transparentPixel);
 });
