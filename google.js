@@ -13,11 +13,22 @@ function decodeBase64UrlSafe(cid) {
 
 // ✅ Main function triggered from /open endpoint
 async function logOpenByCid(cid) {
-  const decoded = decodeBase64UrlSafe(cid);
+  console.log('📩 Incoming CID:', cid);
+
+  let decoded;
+  try {
+    decoded = decodeBase64UrlSafe(cid);
+  } catch (err) {
+    console.error('❌ Failed to decode CID:', err.message);
+    return;
+  }
+
+  console.log('🔓 Decoded CID:', decoded);
   const [company, email, type, sentTime] = decoded.split('|');
+  console.log('🔍 Split Parts — Company:', company, '| Email:', email, '| Type:', type, '| Sent:', sentTime);
 
   if (!company || !email || !type) {
-    console.error('❌ Invalid decoded CID:', decoded);
+    console.error('❌ Invalid decoded CID format.');
     return;
   }
 
@@ -31,11 +42,10 @@ async function logOpenByCid(cid) {
 
   const now = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata' });
 
-  // Find the row by CID (Column Z)
   const targetRow = rows.find(row => row['CID'] === cid);
 
   if (!targetRow) {
-    console.log('⚠️ No matching row found for CID:', cid);
+    console.log('⚠️ No matching row found for CID in sheet:', cid);
     return;
   }
 
@@ -55,7 +65,10 @@ async function logOpenByCid(cid) {
     }
   }
 
+  console.log(`📊 Updating Row for: ${company}, ${email}, ${type}`);
+  console.log('📈 Total Opens:', total, '| ⏱️ Last Seen Time:', now);
   await targetRow.save();
+  console.log('✅ Row successfully updated in Google Sheet.');
 }
 
 module.exports = { logOpenByCid };
