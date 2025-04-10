@@ -13,36 +13,52 @@ async function logOpenByCid(decodedCid) {
   const rows = await sheet.getRows();
 
   const now = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata' });
+  const trimmedCid = decodedCid.trim();
 
-  const matchRow = rows.find(row => (row['CID'] || '').trim() === decodedCid.trim());
+  let matched = false;
 
-  if (!matchRow) {
-    console.error('❌ CID not found in sheet:', decodedCid);
-    return;
-  }
+  for (const row of rows) {
+    const rowCid = (row['CID'] || '').trim();
 
-  // Parse total opens
-  let totalOpens = parseInt(matchRow['Total Opens']) || 0;
-  totalOpens++;
+    if (rowCid === trimmedCid) {
+      console.log('✅ Matching row found for CID:', trimmedCid);
 
-  // Update "Seen 1–10"
-  let updatedSeen = false;
-  for (let i = 1; i <= 10; i++) {
-    const seenCol = `Seen ${i}`;
-    if (!matchRow[seenCol]) {
-      matchRow[seenCol] = now;
-      updatedSeen = true;
+      let total = parseInt(row['Total Opens']) || 0;
+      total++;
+
+      row['Total Opens'] = total;
+      row['Last Seen Time'] = now;
+
+      // Fill Seen 1-10
+      for (let i = 1; i <= 10; i++) {
+        const col = `Seen ${i}`;
+        if (!row[col]) {
+          row[col] = now;
+          break;
+        }
+      }
+
+      await row.save();
+      matched = true;
+
+      console.log(`📊 Row updated: Total Opens = ${total}, Last Seen = ${now}`);
       break;
     }
   }
 
-  // Always update total + last seen
-  matchRow['Total Opens'] = totalOpens;
-  matchRow['Last Seen Time'] = now;
+  if (!matched) {
+    console.error('❌ CID not found in sheet:', trimmedCid);
 
-  await matchRow.save();
-
-  console.log(`📊 Logged open to sheet. CID matched row updated. Seen added? ${updatedSeen}`);
+    // Log it in Logs sheet
+    const logSheet = doc.sheetsByTitle['Logs'];
+    await logSheet.addRow({
+      Timestamp: now,
+      Company: 'CID_NOT_FOUND',
+      Email: '',
+      'Email Type': '',
+      'Message/Status': `⚠️ CID not found: ${trimmedCid}`,
+    });
+  }
 }
 
 module.exports = { logOpenByCid };
