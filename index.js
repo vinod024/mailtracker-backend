@@ -1,14 +1,14 @@
 const express = require('express');
-const { insertTrackingRow } = require('./google'); // ✅ use correct function name
+const { logOpenByCid, insertTrackingRow } = require('./google'); // 🧠 USE correct function names
 const app = express();
 
-// Transparent 1x1 GIF
+// Transparent 1x1 GIF (do not touch)
 const transparentPixel = Buffer.from(
   'R0lGODlhAQABAPAAAAAAAAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==',
   'base64'
 );
 
-// Decode Gmail-safe Base64 CID
+// ✅ Gmail-safe Base64 decoder with padding and substitution fix
 function decodeBase64UrlSafe(cid) {
   try {
     const base64 = cid.replace(/-/g, '+').replace(/_/g, '/');
@@ -20,7 +20,7 @@ function decodeBase64UrlSafe(cid) {
   }
 }
 
-// 📨 Open Tracking Endpoint
+// 📩 Open Tracking Endpoint
 app.get('/open', async (req, res) => {
   const { cid } = req.query;
 
@@ -47,7 +47,7 @@ app.get('/open', async (req, res) => {
     email,
     subject,
     type,
-    sentTime
+    sentTime,
   });
 
   try {
@@ -61,7 +61,7 @@ app.get('/open', async (req, res) => {
   res.send(transparentPixel);
 });
 
-// Optional base route
+// Optional default route
 app.get('/', (req, res) => {
   res.send('📬 Mailtracker backend is live!');
 });
