@@ -1,33 +1,38 @@
 const express = require('express');
-const { logOpenByCid, insertTrackingRow } = require('./google');
+const { logOpenByCid, insertTrackingRow } = require('./google'); // ✅ both functions used
 const app = express();
 
-// 🔍 1x1 transparent pixel
 const transparentPixel = Buffer.from(
-  'R0lGODlhAQABAPAAAAAAAAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==',
+  'R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
   'base64'
 );
 
-// 🔓 CID decoder (URL-safe Base64)
-function decodeBase64UrlSafe(cid) {
+// --- ✅ Improved CID decoder ---
+function decodeBase64UrlSafe(input) {
   try {
-    const base64 = cid.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
-    return Buffer.from(padded, 'base64').toString('utf-8');
-  } catch (err) {
-    console.error('❌ Failed to decode CID:', cid, '| Error:', err.message);
+    const base64 = input
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
+      .padEnd(input.length + (4 - input.length % 4) % 4, '=');
+
+    const buffer = Buffer.from(base64, 'base64');
+    return buffer.toString('utf-8');
+  } catch (error) {
+    console.error('❌ Failed to decode CID:', input, '| error:', error.message);
     return null;
   }
 }
 
-// 📩 Open tracking pixel endpoint
+// --- ✅ Open Tracking Endpoint ---
 app.get('/open', async (req, res) => {
   const { cid } = req.query;
 
   if (!cid) {
-    console.log('❌ Missing cid');
+    console.error('❌ Missing cid');
     return res.status(400).send('Missing cid');
   }
+
+  console.log('🧪 Raw CID before decode:', cid);
 
   const decoded = decodeBase64UrlSafe(cid);
   if (!decoded) {
@@ -51,23 +56,22 @@ app.get('/open', async (req, res) => {
   });
 
   try {
-    await insertTrackingRow(company, email, subject, type, sentTime, cid); // ✅ ensures row exists
-    await logOpenByCid(decoded);
-    console.log('✅ Open tracked and logged.');
+    await insertTrackingRow(company, email, subject, type, sentTime, cid); // ✅ CORRECT FUNCTION
+    console.log(`✅ Open tracked and logged in sheet.`);
   } catch (err) {
     console.error('❌ Failed to log open:', err.message);
   }
 
   res.set('Content-Type', 'image/gif');
-  res.send(transparentPixel);
+  res.end(transparentPixel);
 });
 
-// Default route
+// --- ✅ Default Route ---
 app.get('/', (req, res) => {
-  res.send('📬 Mailtracker backend is live!');
+  res.send('✅ Mailtracker backend is live!');
 });
 
-// 🚀 Start server
+// --- ✅ Start server ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
