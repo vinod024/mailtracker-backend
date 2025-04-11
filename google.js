@@ -61,4 +61,7 @@ async function logOpenByCid(decodedCid) {
   }
 }
 
-module.exports = { logOpenByCid };
+module.exports = {
+  logOpenByCid,
+  insertTrackingRow
+};
