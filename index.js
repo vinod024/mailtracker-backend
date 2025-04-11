@@ -1,78 +1,58 @@
 const express = require('express');
-const { logOpenByCid, insertTrackingRow } = require('./google'); // ✅ both functions used
+const { logOpenByCid, insertTrackingRow } = require('./google');
+
 const app = express();
+const PORT = process.env.PORT || 3000;
 
-const transparentPixel = Buffer.from(
-  'R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
-  'base64'
-);
-
-// --- ✅ Improved CID decoder ---
-function decodeBase64UrlSafe(input) {
+// 🔐 DECODE Base64-SAFE CID
+function decodeBase64UrlSafe(str) {
   try {
-    const base64 = input
-      .replace(/-/g, '+')
-      .replace(/_/g, '/')
-      .padEnd(input.length + (4 - input.length % 4) % 4, '=');
-
-    const buffer = Buffer.from(base64, 'base64');
-    return buffer.toString('utf-8');
-  } catch (error) {
-    console.error('❌ Failed to decode CID:', input, '| error:', error.message);
+    const padded = str.replace(/-/g, '+').replace(/_/g, '/');
+    const base64 = padded + '='.repeat((4 - padded.length % 4) % 4);
+    const decoded = Buffer.from(base64, 'base64').toString('utf-8');
+    return decoded;
+  } catch (err) {
+    console.error('❌ Failed to decode CID:', str, '| Error:', err.message);
     return null;
   }
 }
 
-// --- ✅ Open Tracking Endpoint ---
+// 📬 Tracking Pixel Route
 app.get('/open', async (req, res) => {
   const { cid } = req.query;
-
   if (!cid) {
-    console.error('❌ Missing cid');
+    console.warn('❌ Missing cid');
     return res.status(400).send('Missing cid');
   }
 
-  console.log('🧪 Raw CID before decode:', cid);
-
   const decoded = decodeBase64UrlSafe(cid);
-  if (!decoded) {
-    return res.status(400).send('Invalid CID');
-  }
+  if (!decoded) return res.status(400).send('Invalid CID');
 
   const parts = decoded.split('|');
-  if (parts.length !== 5) {
-    console.error('❌ Invalid decoded CID format:', decoded);
-    return res.status(400).send('CID format must include 5 parts');
-  }
+  if (parts.length < 5) return res.status(400).send('CID must include 5 parts');
 
   const [company, email, subject, type, sentTime] = parts;
 
-  console.log('📬 Open Tracking:', {
-    company,
-    email,
-    subject,
-    type,
-    sentTime,
-  });
+  console.log('📬 Open Tracking:', { company, email, subject, type, sentTime });
 
   try {
-    await insertTrackingRow(company, email, subject, type, sentTime, cid); // ✅ CORRECT FUNCTION
-    console.log(`✅ Open tracked and logged in sheet.`);
+    await insertTrackingRow(company, email, subject, type, sentTime, cid);
+    await logOpenByCid(cid);
+    console.log('✅ Email open tracked and logged.');
   } catch (err) {
     console.error('❌ Failed to log open:', err.message);
   }
 
   res.set('Content-Type', 'image/gif');
-  res.end(transparentPixel);
+  const transparentGif = Buffer.from(
+    'R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
+    'base64'
+  );
+  res.end(transparentGif);
 });
 
-// --- ✅ Default Route ---
-app.get('/', (req, res) => {
-  res.send('✅ Mailtracker backend is live!');
-});
+app.get('/', (_, res) => res.send('📡 Mailtracker backend is live!'));
 
-// --- ✅ Start server ---
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
