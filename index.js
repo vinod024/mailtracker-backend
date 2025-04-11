@@ -2,13 +2,13 @@ const express = require('express');
 const { logOpenByCid, insertTrackingRow } = require('./google');
 const app = express();
 
-// Transparent tracking pixel
+// 🔍 1x1 transparent pixel
 const transparentPixel = Buffer.from(
   'R0lGODlhAQABAPAAAAAAAAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==',
   'base64'
 );
 
-// Decode Gmail-safe base64 URL
+// 🔓 CID decoder (URL-safe Base64)
 function decodeBase64UrlSafe(cid) {
   try {
     const base64 = cid.replace(/-/g, '+').replace(/_/g, '/');
@@ -20,7 +20,7 @@ function decodeBase64UrlSafe(cid) {
   }
 }
 
-// 🔁 Pixel open handler
+// 📩 Open tracking pixel endpoint
 app.get('/open', async (req, res) => {
   const { cid } = req.query;
 
@@ -30,7 +30,9 @@ app.get('/open', async (req, res) => {
   }
 
   const decoded = decodeBase64UrlSafe(cid);
-  if (!decoded) return res.status(400).send('Invalid CID');
+  if (!decoded) {
+    return res.status(400).send('Invalid CID');
+  }
 
   const parts = decoded.split('|');
   if (parts.length !== 5) {
@@ -40,12 +42,18 @@ app.get('/open', async (req, res) => {
 
   const [company, email, subject, type, sentTime] = parts;
 
-  console.log('📩 Open Tracking:', { company, email, subject, type, sentTime });
+  console.log('📬 Open Tracking:', {
+    company,
+    email,
+    subject,
+    type,
+    sentTime,
+  });
 
   try {
-    await insertTrackingRow(company, email, subject, type, sentTime, cid); // ensures row exists
-    await logOpenByCid(decoded); // logs the open
-    console.log('✅ Open tracked and logged in sheet.');
+    await insertTrackingRow(company, email, subject, type, sentTime, cid); // ✅ ensures row exists
+    await logOpenByCid(decoded);
+    console.log('✅ Open tracked and logged.');
   } catch (err) {
     console.error('❌ Failed to log open:', err.message);
   }
@@ -54,12 +62,12 @@ app.get('/open', async (req, res) => {
   res.send(transparentPixel);
 });
 
-// Home route
+// Default route
 app.get('/', (req, res) => {
   res.send('📬 Mailtracker backend is live!');
 });
 
-// Start server
+// 🚀 Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
