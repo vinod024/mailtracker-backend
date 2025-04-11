@@ -12,8 +12,8 @@ app.get('/open', async (req, res) => {
 
   try {
     const decoded = decodeBase64UrlSafe(cid);
-
     const parts = decoded.split('|');
+
     if (parts.length !== 5) {
       console.error('❌ Invalid CID format (5 parts required)', decoded);
       return res.status(400).send('Invalid CID');
@@ -37,7 +37,7 @@ app.get('/open', async (req, res) => {
       'base64'
     ));
   } catch (err) {
-    console.error('❌ Failed to log open (decode or save):', err.message);
+    console.error('❌ Failed to log open:', err.message);
     res.status(500).send('Error');
   }
 });
@@ -45,8 +45,7 @@ app.get('/open', async (req, res) => {
 function decodeBase64UrlSafe(cid) {
   const padded = cid.replace(/-/g, '+').replace(/_/g, '/');
   const base64 = padded + '='.repeat((4 - (padded.length % 4)) % 4);
-  const buffer = Buffer.from(base64, 'base64');
-  return buffer.toString('utf8');
+  return Buffer.from(base64, 'base64').toString('utf8');
 }
 
 const PORT = process.env.PORT || 3000;
