@@ -2,6 +2,7 @@ const { GoogleSpreadsheet } = require('google-spreadsheet');
 const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 
+// ✅ LOG OPENS
 async function logOpenByCid(decodedCid) {
   const doc = new GoogleSpreadsheet(SHEET_ID);
   await doc.useServiceAccountAuth(creds);
@@ -9,11 +10,10 @@ async function logOpenByCid(decodedCid) {
 
   const sheet = doc.sheetsByTitle['Email Tracking Log'];
   await sheet.loadHeaderRow();
-
   const rows = await sheet.getRows();
+
   const now = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata' });
   const trimmedCid = decodedCid.trim();
-
   let matched = false;
 
   for (const row of rows) {
@@ -21,13 +21,13 @@ async function logOpenByCid(decodedCid) {
 
     if (rowCid === trimmedCid) {
       console.log('✅ Matching row found for CID:', trimmedCid);
-
       let total = parseInt(row['Total Opens']) || 0;
       total++;
+
       row['Total Opens'] = total;
       row['Last Seen Time'] = now;
 
-      // Fill Seen 1-10
+      // Fill Seen 1 to Seen 10
       for (let i = 1; i <= 10; i++) {
         const col = `Seen ${i}`;
         if (!row[col]) {
@@ -38,8 +38,7 @@ async function logOpenByCid(decodedCid) {
 
       await row.save();
       matched = true;
-
-      console.log(`📊 Row updated: Total Opens = ${total}, Last Seen = ${now}`);
+      console.log(`📬 Row updated: Total Opens = ${total}, Last Seen = ${now}`);
       break;
     }
   }
@@ -58,6 +57,7 @@ async function logOpenByCid(decodedCid) {
   }
 }
 
+// ✅ INSERT ROW WHEN SENDING EMAIL
 async function insertTrackingRow(company, email, subject, type, sentTime, cid) {
   const doc = new GoogleSpreadsheet(SHEET_ID);
   await doc.useServiceAccountAuth(creds);
@@ -65,9 +65,9 @@ async function insertTrackingRow(company, email, subject, type, sentTime, cid) {
 
   const sheet = doc.sheetsByTitle['Email Tracking Log'];
   await sheet.loadHeaderRow();
-
   const rows = await sheet.getRows();
-  const exists = rows.some(row =>
+
+  const exists = rows.some((row) =>
     row['Company Name'] === company &&
     row['Email ID'] === email &&
     row['Email Type'] === type
@@ -77,7 +77,7 @@ async function insertTrackingRow(company, email, subject, type, sentTime, cid) {
     await sheet.addRow({
       'Company Name': company,
       'Email ID': email,
-      Subject: subject,
+      'Subject': subject,
       'Email Type': type,
       'Sent Time': sentTime,
       'Total Opens': 0,
@@ -91,13 +91,9 @@ async function insertTrackingRow(company, email, subject, type, sentTime, cid) {
       'Total Web Clicks': '',
       'Last Web Click Time': '',
       'Total Portfolio Link Clicks': '',
-      'Last Portfolio Link Click Time': '',
-      CID: cid,
+      'Last Portfolio Link Time': '',
+      'CID': cid
     });
-
-    console.log('🆕 Inserted new row for CID:', cid);
-  } else {
-    console.log('🟡 Row already exists for this email+type combo, skipping insert.');
   }
 }
 
