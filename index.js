@@ -5,7 +5,7 @@ const app = express();
 const transparentPixel = Buffer.from(
   'R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
   'base64'
-);
+);      
 
 // Safe Base64 URL decoder (Mailtracker-compatible)
 function decodeBase64UrlSafe(str) {

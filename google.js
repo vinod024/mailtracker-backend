@@ -27,7 +27,7 @@ async function logOpenByCid(decodedCid) {
         const col = `Seen ${i}`;
         if (!row[col]) {
           row[col] = now;
-          break;
+          break;    
         }
       }
 
